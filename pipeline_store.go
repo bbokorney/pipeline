@@ -11,15 +11,18 @@ type PipelineStore interface {
 	Find(ID int) (Pipeline, error)
 }
 
+// StepStore stores steps
 type StepStore interface {
 	Add(step Step) (Step, error)
 	Find(ID int) (Step, error)
 }
 
 var (
+	// ErrNotFound indicates an item not found
 	ErrNotFound = errors.New("Item not found")
 )
 
+// NewPipelineStore returns a new PipelineStore
 func NewPipelineStore() PipelineStore {
 	return &inMemPipelineStore{
 		lock:   &sync.RWMutex{},
@@ -28,6 +31,7 @@ func NewPipelineStore() PipelineStore {
 	}
 }
 
+// NewStepStore returns a new StepStore
 func NewStepStore() StepStore {
 	return &inMemStepStore{
 		lock:   &sync.RWMutex{},

@@ -12,12 +12,14 @@ type PipelineAPI struct {
 	pipelineService PipelineService
 }
 
+// NewPipelineAPI returns a new PipelineAPI
 func NewPipelineAPI(pipelineService PipelineService) PipelineAPI {
 	return PipelineAPI{
 		pipelineService: pipelineService,
 	}
 }
 
+// Register adds the routes to the web service container
 func (api PipelineAPI) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 

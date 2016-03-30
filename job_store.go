@@ -2,11 +2,13 @@ package main
 
 import "sync"
 
+// JobStore stores jobs
 type JobStore interface {
 	Add(job Job) (Job, error)
 	Find(ID int) (Job, error)
 }
 
+// NewJobStore creates a new JobStore
 func NewJobStore() JobStore {
 	return &inMemJobStore{
 		lock:   &sync.RWMutex{},
@@ -32,7 +34,7 @@ func (store *inMemJobStore) Add(j Job) (Job, error) {
 		StepID:     j.StepID,
 		BranchName: j.BranchName,
 		CommitHash: j.CommitHash,
-		step:       j.step,
+		Status:     Queued,
 	}, nil
 }
 

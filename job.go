@@ -11,15 +11,30 @@ import (
 
 // Job is a job
 type Job struct {
-	ID         int
-	StepID     int
-	BranchName string
-	CommitHash string
+	ID         int       `json:"id"`
+	StepID     int       `json:"step_id"`
+	BranchName string    `json:"branch_name"`
+	CommitHash string    `json:"commit_hash"`
+	Status     JobStatus `json:"status"`
 	step       Step
 }
 
 // Cmd is a command to run in the job
 type Cmd []string
+
+// JobStatus represents the status of the job
+type JobStatus string
+
+const (
+	// Queued state indicates the job is queued waiting to be run
+	Queued JobStatus = "Queued"
+	// Running state indicates the job is running
+	Running JobStatus = "Running"
+	// Successful state indicates the job has completed successfully
+	Successful JobStatus = "Successful"
+	// Failed state indicates the job has completed with a failure
+	Failed JobStatus = "Failed"
+)
 
 // Run runs the Job
 func (job *Job) Run() error {

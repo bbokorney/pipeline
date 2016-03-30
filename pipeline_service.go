@@ -1,10 +1,12 @@
 package main
 
+// PipelineService manages Pipelines
 type PipelineService interface {
 	Add(pipeline Pipeline) (Pipeline, error)
 	Find(ID int) (Pipeline, error)
 }
 
+// NewPipelineService returns a new PipelineService
 func NewPipelineService(pipelineStore PipelineStore, stepStore StepStore) PipelineService {
 	return pipelineService{
 		pipelineStore: pipelineStore,
@@ -17,6 +19,7 @@ type pipelineService struct {
 	stepStore     StepStore
 }
 
+// Add creates a new Pipeline
 func (service pipelineService) Add(pipeline Pipeline) (Pipeline, error) {
 	// add all of the steps
 	var steps []Step
