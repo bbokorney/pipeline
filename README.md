@@ -1,2 +1,9 @@
 # pipeline
-A simple CI pipeline service which runs on Docker.
+A service for coordinating jobs, built on dockworker.
+
+## TODO
+
+* Websockets for live stream of pipeline events
+* Persistence
+* Graceful restarts
+* Multiple instances of a step

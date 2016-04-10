@@ -2,29 +2,40 @@ package main
 
 // Pipeline is a set of Steps
 type Pipeline struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
-	Steps []Step `json:"steps"`
+	ID     PipelineID `json:"id"`
+	Name   string     `json:"name"`
+	Steps  []Step     `json:"steps"`
+	Status Status     `json:"status"`
 }
 
 // Step is a step of a Pipeline
 type Step struct {
-	ID        int     `json:"id"`
-	Name      string  `json:"name"`
-	ImageName string  `json:"image"`
-	Cmds      []Cmd   `json:"cmds"`
-	Inputs    []Input `json:"inputs"`
+	Name      string   `json:"name"`
+	ImageName string   `json:"image"`
+	Cmds      []Cmd    `json:"cmds"`
+	After     []string `json:"after"`
+	Status    Status   `json:"status"`
 }
 
-// InputType is an input type
-type InputType string
+// PipelineID is and identifier for a Pipeline
+type PipelineID int
+
+// Cmd represents a command
+type Cmd string
+
+// Status represents the state of a
+// Pipeline or Step
+type Status string
 
 const (
-	// PrevStep is an input from a previous step
-	PrevStep InputType = "prev_step"
-	// Repo is an input from a repo
-	Repo InputType = "repo"
+	// StatusQueued state indicates the job is queued waiting to be run
+	StatusQueued Status = "queued"
+	// StatusRunning state indicates the job is running
+	StatusRunning Status = "running"
+	// StatusSuccessful state indicates the job has completed successfully
+	StatusSuccessful Status = "successful"
+	// StatusFailed state indicates the job has completed with a failure
+	StatusFailed Status = "failed"
+	// StatusError state indicates the job could not be run properly
+	StatusError Status = "error"
 )
-
-// Input is an input to a step
-type Input map[string]string

@@ -21,7 +21,6 @@ func initWSContainer() *restful.Container {
 
 func initPipelineAPI() PipelineAPI {
 	pipelineStore := NewPipelineStore()
-	stepStore := NewStepStore()
-	pipelineService := NewPipelineService(pipelineStore, stepStore)
+	pipelineService := NewPipelineService(pipelineStore)
 	return NewPipelineAPI(pipelineService)
 }

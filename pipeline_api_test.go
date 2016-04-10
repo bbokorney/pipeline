@@ -21,29 +21,31 @@ func TestAPI(t *testing.T) {
 
 	pipelineURL := fmt.Sprintf("%s/%s", ts.URL, "pipelines")
 
-	resp, err := http.Post(pipelineURL, "application/json", strings.NewReader(examplePipelineBody))
-	if err != nil {
-		t.Errorf("Error sending post request: %s", err)
+	for i, tc := range apiTestCases {
+		resp, err := http.Post(pipelineURL, "application/json", strings.NewReader(tc.exampleBody))
+		if err != nil {
+			t.Errorf("Case %d: Error sending post request: %s", i, err)
+		}
+		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Case %d: Status code should be 201", i)
+
+		pipelinePOST := decodeBody(t, i, resp.Body)
+
+		resp, err = http.Get(fmt.Sprintf("%s/%d", pipelineURL, pipelinePOST.ID))
+		if err != nil {
+			t.Errorf("Case %d: Error sending get request: %s", i, err)
+		}
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "Case %d: Status code should be 200", i)
+		pipelineGET := decodeBody(t, i, resp.Body)
+
+		assert.Equal(t, pipelineGET, pipelinePOST)
 	}
-	assert.Equal(t, http.StatusCreated, resp.StatusCode, "Status code should be 201")
-
-	pipelinePOST := decodeBody(t, resp.Body)
-
-	resp, err = http.Get(fmt.Sprintf("%s/%d", pipelineURL, pipelinePOST.ID))
-	if err != nil {
-		t.Errorf("Error sending get request: %s", err)
-	}
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Status code should be 200")
-	pipelineGET := decodeBody(t, resp.Body)
-
-	assert.Equal(t, pipelineGET, pipelinePOST)
 }
 
-func decodeBody(t *testing.T, respBody io.ReadCloser) *Pipeline {
+func decodeBody(t *testing.T, tcNum int, respBody io.ReadCloser) *Pipeline {
 	body, err := ioutil.ReadAll(respBody)
 	defer respBody.Close()
 	if err != nil {
-		t.Errorf("Error reading response body: %s", err)
+		t.Errorf("Case %d: Error reading response body: %s", tcNum, err)
 	}
 
 	pipeline := &Pipeline{}
@@ -55,37 +57,25 @@ func decodeBody(t *testing.T, respBody io.ReadCloser) *Pipeline {
 	return pipeline
 }
 
-const examplePipelineBody = `{
-  "name": "Pipeline Name",
-  "steps": [
-    {
-      "name": "Step Name",
-      "image": "ubuntu:14.04",
-      "cmds": [
-        ["ls", "-la"],
-        ["touch", "hello.txt"],
-        ["ls", "-la"]
-      ],
-      "input": {
-        "repo": {
-          "dir": "/path/to/repo",
-          "branch": "branch-name"
-        },
-        "prev_steps": [
-          {
-            "step_name": "step name",
-            "dir": "/some/path"
-          },
-          {
-            "step_name": "another step name",
-            "dir": "/some/other/path"
-          }
-        ]
-      },
-      "output": {
-        "dir": "/output/path"
-      }
-    }
-  ]
+type apiTestCase struct {
+	exampleBody string
 }
-`
+
+var apiTestCases = []apiTestCase{
+	apiTestCase{
+		exampleBody: `{
+	  "name": "Pipeline Name",
+	  "steps": [
+	    {
+	      "name": "Step Name",
+	      "image": "ubuntu:14.04",
+	      "cmds": [
+	        "ls -la",
+	        "touch hello.txt",
+	        "ls -la"
+	      ]
+			}
+	  ]
+	}`,
+	},
+}

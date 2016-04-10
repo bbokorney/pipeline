@@ -45,8 +45,9 @@ func (api PipelineAPI) findPipeline(request *restful.Request, response *restful.
 		response.WriteHeaderAndEntity(http.StatusNotFound, errorResponse("ID must be int"))
 		return
 	}
+	pipelineID := PipelineID(id)
 
-	pipeline, err := api.pipelineService.Find(id)
+	pipeline, err := api.pipelineService.Find(pipelineID)
 	if err != nil {
 		switch err {
 		case ErrNotFound:
@@ -74,14 +75,4 @@ func (api PipelineAPI) createPipeline(request *restful.Request, response *restfu
 		return
 	}
 	response.WriteHeaderAndEntity(http.StatusCreated, p)
-}
-
-func errorResponse(msg string) errorMessage {
-	return errorMessage{
-		Message: msg,
-	}
-}
-
-type errorMessage struct {
-	Message string `json:"message"`
 }
