@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/bbokorney/dockworker"
@@ -83,11 +85,14 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 		return false, nil
 	}
 
+	// TODO: lots of duplicated code in this section
 	// check the status of the job
 	if job.Status != dockworker.JobStatusSuccessful {
 		// set the status of the step
 		stepIndex := w.runningJobs[job.ID]
+		w.pipeline.Steps[stepIndex].EndTime = time.Now().Unix()
 		w.pipeline.Steps[stepIndex].Status = StatusFailed
+		w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/%d", w.dwClient.BaseURL(), job.ID)
 		w.pipeline.Status = StatusFailed
 		w.saveUpdatedPipeline()
 		// TODO: stop any running jobs (when the functionality is available)
@@ -96,7 +101,9 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 
 	// now we know the job was successful
 	stepIndex := w.runningJobs[job.ID]
+	w.pipeline.Steps[stepIndex].EndTime = time.Now().Unix()
 	w.pipeline.Steps[stepIndex].Status = StatusSuccessful
+	w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/%d", w.dwClient.BaseURL(), job.ID)
 	w.saveUpdatedPipeline()
 	delete(w.runningJobs, job.ID)
 
@@ -145,6 +152,7 @@ func (w *worker) runStep(step *Step, stepIndex int) error {
 		return err
 	}
 	log.Debugf("Job started %+v", createdJob)
+	step.StartTime = time.Now().Unix()
 	w.runningJobs[createdJob.ID] = stepIndex
 	step.Status = StatusRunning
 	w.saveUpdatedPipeline()

@@ -8,6 +8,8 @@ type Pipeline struct {
 	Status Status     `json:"status"`
 }
 
+// TODO: investigate omit if empty struct tags
+
 // Step is a step of a Pipeline
 type Step struct {
 	Name      string   `json:"name"`
@@ -16,6 +18,8 @@ type Step struct {
 	After     []string `json:"after"`
 	JobURL    string   `json:"job_url"`
 	Status    Status   `json:"status"`
+	StartTime int64    `json:"start_time"`
+	EndTime   int64    `json:"end_time"`
 }
 
 // PipelineID is and identifier for a Pipeline

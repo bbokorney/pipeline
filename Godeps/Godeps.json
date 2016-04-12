@@ -9,7 +9,7 @@
 		},
 		{
 			"ImportPath": "github.com/bbokorney/dockworker",
-			"Rev": "23fc2183f3eca8209135b8180fae8a687a2653fa"
+			"Rev": "d21e3e17e83c46498ec62093f3ce544b0513761d"
 		},
 		{
 			"ImportPath": "github.com/emicklei/go-restful",

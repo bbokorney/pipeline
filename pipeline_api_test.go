@@ -42,6 +42,8 @@ func TestAPI(t *testing.T) {
 		pipelineGET := getPipeline(t, i, pipelineURL, pipelinePOST.ID)
 		assert.Equal(t, tc.pipeline.Status, pipelineGET.Status, "Case %d: Status should match", i)
 		compareStepStatuses(t, i, tc.pipeline.Steps, pipelineGET.Steps)
+		compareStepJobURLs(t, i, tc.pipeline.Steps, pipelineGET.Steps)
+		validateStepTimestampsAndDependencies(t, i, pipelineGET.Steps)
 	}
 }
 
@@ -65,9 +67,28 @@ func compareStepStatuses(t *testing.T, tcNum int, expectedSteps []*Step, actualS
 func compareStepJobURLs(t *testing.T, tcNum int, expectedSteps []*Step, actualSteps []*Step) {
 	assert.Equal(t, len(expectedSteps), len(actualSteps), "Case %d: Length of steps should match", tcNum)
 	for i := range expectedSteps {
-		// if (expectedSteps[i].Status != StatusQueued) || (expectedSteps[i].Status != StatusNotRun) {
-		if !(expectedSteps[i].Status != StatusQueued && expectedSteps[i].Status != StatusNotRun) {
+		if expectedSteps[i].Status != StatusQueued && expectedSteps[i].Status != StatusNotRun {
 			assert.NotEmpty(t, actualSteps[i].JobURL, "Case %d, Step %d: JobURL should be set", tcNum, i)
+		}
+	}
+}
+
+func validateStepTimestampsAndDependencies(t *testing.T, tcNum int, actualSteps []*Step) {
+	steps := make(map[string]Step)
+	for i, step := range actualSteps {
+		assert.Condition(t, func() bool { return step.StartTime < step.EndTime },
+			"Case %d, Step %d: Start time should be before end time", tcNum, i)
+		steps[step.Name] = *step
+	}
+
+	for stepIndex, step := range actualSteps {
+		if stepDone(*step) {
+			for depIndex, dep := range step.After {
+				assert.Condition(t, func() bool { return steps[dep].Status == StatusSuccessful },
+					"Case %d, Step %d: Dep %d: End time of dependency should be before start time of step", tcNum, stepIndex, depIndex)
+				assert.Condition(t, func() bool { return steps[dep].EndTime < step.StartTime },
+					"Case %d, Step %d: Dep %d: End time of dependency should be before start time of step", tcNum, stepIndex, depIndex)
+			}
 		}
 	}
 }
@@ -107,10 +128,26 @@ func decodeBody(t *testing.T, tcNum int, respBody io.ReadCloser) *Pipeline {
 	return pipeline
 }
 
+func getLogs(t *testing.T, tcNum int, url string) string {
+	resp, err := http.Get(fmt.Sprintf("%s/logs", url))
+	if err != nil {
+		t.Errorf("Case %d: Error getting logs: %s", tcNum, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Case %d: Expected code getting logs %d but received %d", tcNum, http.StatusCreated, resp.StatusCode)
+	}
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Case %d: Error reading log response body %s", tcNum, err)
+	}
+	return string(respBody)
+}
+
 type apiTestCase struct {
-	requestBody  string
-	pipeline     Pipeline
-	resultStatus Status
+	requestBody string
+	pipeline    Pipeline
 }
 
 var apiTestCases = []apiTestCase{
