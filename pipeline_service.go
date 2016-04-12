@@ -7,24 +7,33 @@ type PipelineService interface {
 }
 
 // NewPipelineService returns a new PipelineService
-func NewPipelineService(pipelineStore PipelineStore) PipelineService {
+func NewPipelineService(pipelineStore PipelineStore, manager Manager) PipelineService {
 	return pipelineService{
 		pipelineStore: pipelineStore,
+		manager:       manager,
 	}
 }
 
 type pipelineService struct {
 	pipelineStore PipelineStore
+	manager       Manager
 }
 
 // Add creates a new Pipeline
 func (service pipelineService) Add(pipeline Pipeline) (Pipeline, error) {
-	// add all of the steps
+	if err := ValidatePipeline(pipeline); err != nil {
+		return Pipeline{}, err
+	}
+
 	pipeline.Status = StatusQueued
+	for _, step := range pipeline.Steps {
+		step.Status = StatusQueued
+	}
 	p, err := service.pipelineStore.Add(pipeline)
 	if err != nil {
 		return Pipeline{}, err
 	}
+	service.manager.NotifyNewPipeline(p)
 	return p, nil
 }
 

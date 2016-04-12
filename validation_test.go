@@ -23,8 +23,8 @@ var validationTestCases = []validationTestCase{
 		err: ErrMissingPipelineName,
 		pipeline: Pipeline{
 			Name: "",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
@@ -36,20 +36,20 @@ var validationTestCases = []validationTestCase{
 		err: ErrNoSteps,
 		pipeline: Pipeline{
 			Name:  "Test Pipeline",
-			Steps: []Step{},
+			Steps: []*Step{},
 		},
 	},
 	validationTestCase{
 		err: ErrMissingStepName,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 				},
-				Step{
+				&Step{
 					Name:      "",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
@@ -61,13 +61,13 @@ var validationTestCases = []validationTestCase{
 		err: ErrNonUniqueStepNames,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
@@ -79,13 +79,13 @@ var validationTestCases = []validationTestCase{
 		err: ErrMissingImageName,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
@@ -97,13 +97,13 @@ var validationTestCases = []validationTestCase{
 		err: ErrMissingCommands,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", ""},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
@@ -115,13 +115,13 @@ var validationTestCases = []validationTestCase{
 		err: ErrMissingCommands,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{},
@@ -133,14 +133,14 @@ var validationTestCases = []validationTestCase{
 		err: ErrNonExistentStepDependency,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 					After:     []string{"not a step"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd"},
@@ -152,14 +152,14 @@ var validationTestCases = []validationTestCase{
 		err: ErrCircularStepDependency,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 					After:     []string{"Test Step 2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd"},
@@ -172,14 +172,14 @@ var validationTestCases = []validationTestCase{
 		err: ErrCircularStepDependency,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 					After:     []string{"Test Step 1"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd"},
@@ -191,14 +191,14 @@ var validationTestCases = []validationTestCase{
 		err: nil,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 					After:     []string{"Test Step 2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd"},
@@ -210,20 +210,20 @@ var validationTestCases = []validationTestCase{
 		err: ErrCircularStepDependency,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 					After:     []string{"Test Step 2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd"},
 					After:     []string{"Test Step 3"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 3",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
@@ -236,19 +236,19 @@ var validationTestCases = []validationTestCase{
 		err: nil,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 					After:     []string{"Test Step 2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 3",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
@@ -261,18 +261,18 @@ var validationTestCases = []validationTestCase{
 		err: nil,
 		pipeline: Pipeline{
 			Name: "Test Pipeline",
-			Steps: []Step{
-				Step{
+			Steps: []*Step{
+				&Step{
 					Name:      "Test Step 1",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 2",
 					ImageName: "someimage:1234",
 					Cmds:      []Cmd{"cmd"},
 				},
-				Step{
+				&Step{
 					Name:      "Test Step 3",
 					ImageName: "someimage:123",
 					Cmds:      []Cmd{"cmd1", "cmd2"},

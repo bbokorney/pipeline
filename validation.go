@@ -21,6 +21,15 @@ var (
 	ErrCircularStepDependency = fmt.Errorf("Must have no circular dependencies between steps")
 )
 
+// ValidationError represents a pipeline validation error
+type ValidationError struct {
+	err error
+}
+
+func (ve ValidationError) Error() string {
+	return ve.err.Error()
+}
+
 // ValidatePipeline checks that a pipeline is valid
 // checks all the necessary fields aren't blank
 // checks that either cmd or cmds only are specified
@@ -99,7 +108,7 @@ var validations = []validation{
 	func(pipeline Pipeline) error {
 		steps := make(map[string]Step)
 		for _, step := range pipeline.Steps {
-			steps[step.Name] = step
+			steps[step.Name] = *step
 		}
 		// do a BFS through the graph
 		overallVisited := make(map[string]bool)

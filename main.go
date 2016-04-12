@@ -1,26 +1,14 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 
-	"github.com/emicklei/go-restful"
+	log "github.com/Sirupsen/logrus"
 )
 
 func main() {
-	wsContainer := initWSContainer()
-	log.Fatal(http.ListenAndServe(":4321", wsContainer))
-}
-
-func initWSContainer() *restful.Container {
-	pipelineAPI := initPipelineAPI()
-	wsContainer := restful.NewContainer()
-	pipelineAPI.Register(wsContainer)
-	return wsContainer
-}
-
-func initPipelineAPI() PipelineAPI {
-	pipelineStore := NewPipelineStore()
-	pipelineService := NewPipelineService(pipelineStore)
-	return NewPipelineAPI(pipelineService)
+	wsContainer := doInit()
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", config.BindAddress, config.BindPort),
+		wsContainer))
 }

@@ -9,3 +9,8 @@ func errorResponse(msg string) errorMessage {
 type errorMessage struct {
 	Message string `json:"message"`
 }
+
+func isValidationError(err error) bool {
+	_, isType := err.(ValidationError)
+	return isType
+}

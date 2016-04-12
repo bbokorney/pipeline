@@ -71,6 +71,10 @@ func (api PipelineAPI) createPipeline(request *restful.Request, response *restfu
 
 	p, err := api.pipelineService.Add(*pipeline)
 	if err != nil {
+		if isValidationError(err) {
+			response.WriteHeaderAndEntity(http.StatusBadRequest, errorResponse(err.Error()))
+			return
+		}
 		response.WriteHeaderAndEntity(http.StatusInternalServerError, errorResponse(err.Error()))
 		return
 	}

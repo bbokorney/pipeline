@@ -6,39 +6,89 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	retryCount         = 10
+	pipelineHostEnvKey = "PIPELINE_URL"
+)
+
 func TestAPI(t *testing.T) {
-	wsContainer := initWSContainer()
-
-	ts := httptest.NewServer(wsContainer)
-	defer ts.Close()
-
-	pipelineURL := fmt.Sprintf("%s/%s", ts.URL, "pipelines")
+	url := os.Getenv(pipelineHostEnvKey)
+	if url == "" {
+		t.Fatalf("Must specify %s", pipelineHostEnvKey)
+	}
+	pipelineURL := fmt.Sprintf("%s/%s", url, "pipelines")
 
 	for i, tc := range apiTestCases {
-		resp, err := http.Post(pipelineURL, "application/json", strings.NewReader(tc.exampleBody))
+		resp, err := http.Post(pipelineURL, "application/json", strings.NewReader(tc.requestBody))
 		if err != nil {
 			t.Errorf("Case %d: Error sending post request: %s", i, err)
 		}
 		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Case %d: Status code should be 201", i)
 
 		pipelinePOST := decodeBody(t, i, resp.Body)
+		assert.Equal(t, tc.pipeline.Name, pipelinePOST.Name, "Case %d: Pipeline name should be unchanged", i)
+		compareStepData(t, i, tc.pipeline.Steps, pipelinePOST.Steps)
+		assert.Equal(t, StatusQueued, pipelinePOST.Status, "Case %d: Status should be queued", i)
 
-		resp, err = http.Get(fmt.Sprintf("%s/%d", pipelineURL, pipelinePOST.ID))
-		if err != nil {
-			t.Errorf("Case %d: Error sending get request: %s", i, err)
-		}
-		assert.Equal(t, http.StatusOK, resp.StatusCode, "Case %d: Status code should be 200", i)
-		pipelineGET := decodeBody(t, i, resp.Body)
-
-		assert.Equal(t, pipelineGET, pipelinePOST)
+		waitUntilDone(t, i, pipelineURL, pipelinePOST.ID)
+		pipelineGET := getPipeline(t, i, pipelineURL, pipelinePOST.ID)
+		assert.Equal(t, tc.pipeline.Status, pipelineGET.Status, "Case %d: Status should match", i)
+		compareStepStatuses(t, i, tc.pipeline.Steps, pipelineGET.Steps)
 	}
+}
+
+func compareStepData(t *testing.T, tcNum int, expectedSteps []*Step, actualSteps []*Step) {
+	assert.Equal(t, len(expectedSteps), len(actualSteps), "Case %d: Length of steps should match", tcNum)
+	for i := range expectedSteps {
+		assert.Equal(t, expectedSteps[i].Name, actualSteps[i].Name, "Case %d, Step %d: Step name should be unchanged", tcNum, i)
+		assert.Equal(t, expectedSteps[i].ImageName, actualSteps[i].ImageName, "Case %d, Step %d: Step image should be unchanged", tcNum, i)
+		assert.Equal(t, expectedSteps[i].After, actualSteps[i].After, "Case %d, Step %d: Step dependencies should be unchanged", tcNum, i)
+		assert.Equal(t, expectedSteps[i].Cmds, actualSteps[i].Cmds, "Case %d, Step %d: Step cmds should be unchanged", tcNum, i)
+	}
+}
+
+func compareStepStatuses(t *testing.T, tcNum int, expectedSteps []*Step, actualSteps []*Step) {
+	assert.Equal(t, len(expectedSteps), len(actualSteps), "Case %d: Length of steps should match", tcNum)
+	for i := range expectedSteps {
+		assert.Equal(t, expectedSteps[i].Status, actualSteps[i].Status, "Case %d, Step %d: Step name should be unchanged", tcNum, i)
+	}
+}
+
+func compareStepJobURLs(t *testing.T, tcNum int, expectedSteps []*Step, actualSteps []*Step) {
+	assert.Equal(t, len(expectedSteps), len(actualSteps), "Case %d: Length of steps should match", tcNum)
+	for i := range expectedSteps {
+		// if (expectedSteps[i].Status != StatusQueued) || (expectedSteps[i].Status != StatusNotRun) {
+		if !(expectedSteps[i].Status != StatusQueued && expectedSteps[i].Status != StatusNotRun) {
+			assert.NotEmpty(t, actualSteps[i].JobURL, "Case %d, Step %d: JobURL should be set", tcNum, i)
+		}
+	}
+}
+
+func waitUntilDone(t *testing.T, tcNum int, pipelineURL string, pipelineID PipelineID) {
+	for i := 0; i < retryCount; i++ {
+		p := getPipeline(t, tcNum, pipelineURL, pipelineID)
+		if p.Status != "running" && p.Status != "queued" {
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+	t.Fatalf("Case %d: Waitied too long for pipeline to complete", tcNum)
+}
+
+func getPipeline(t *testing.T, tcNum int, pipelineURL string, ID PipelineID) *Pipeline {
+	resp, err := http.Get(fmt.Sprintf("%s/%d", pipelineURL, ID))
+	if err != nil {
+		t.Errorf("Case %d: Error sending get request: %s", tcNum, err)
+	}
+	return decodeBody(t, tcNum, resp.Body)
 }
 
 func decodeBody(t *testing.T, tcNum int, respBody io.ReadCloser) *Pipeline {
@@ -58,12 +108,14 @@ func decodeBody(t *testing.T, tcNum int, respBody io.ReadCloser) *Pipeline {
 }
 
 type apiTestCase struct {
-	exampleBody string
+	requestBody  string
+	pipeline     Pipeline
+	resultStatus Status
 }
 
 var apiTestCases = []apiTestCase{
 	apiTestCase{
-		exampleBody: `{
+		requestBody: `{
 	  "name": "Pipeline Name",
 	  "steps": [
 	    {
@@ -77,5 +129,21 @@ var apiTestCases = []apiTestCase{
 			}
 	  ]
 	}`,
+		pipeline: Pipeline{
+			Name:   "Pipeline Name",
+			Status: StatusSuccessful,
+			Steps: []*Step{
+				&Step{
+					Name:      "Step Name",
+					ImageName: "ubuntu:14.04",
+					Cmds: []Cmd{
+						"ls -la",
+						"touch hello.txt",
+						"ls -la",
+					},
+					Status: StatusSuccessful,
+				},
+			},
+		},
 	},
 }

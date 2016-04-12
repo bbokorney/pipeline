@@ -4,7 +4,7 @@ package main
 type Pipeline struct {
 	ID     PipelineID `json:"id"`
 	Name   string     `json:"name"`
-	Steps  []Step     `json:"steps"`
+	Steps  []*Step    `json:"steps"`
 	Status Status     `json:"status"`
 }
 
@@ -14,6 +14,7 @@ type Step struct {
 	ImageName string   `json:"image"`
 	Cmds      []Cmd    `json:"cmds"`
 	After     []string `json:"after"`
+	JobURL    string   `json:"job_url"`
 	Status    Status   `json:"status"`
 }
 
@@ -38,4 +39,6 @@ const (
 	StatusFailed Status = "failed"
 	// StatusError state indicates the job could not be run properly
 	StatusError Status = "error"
+	// StatusNotRun state indicates the job was not run
+	StatusNotRun Status = "not-run"
 )

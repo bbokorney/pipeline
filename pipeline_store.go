@@ -9,6 +9,7 @@ import (
 type PipelineStore interface {
 	Add(pipeline Pipeline) (Pipeline, error)
 	Find(ID PipelineID) (Pipeline, error)
+	Update(p Pipeline) error
 }
 
 var (
@@ -48,4 +49,11 @@ func (store inMemPipelineStore) Find(ID PipelineID) (Pipeline, error) {
 		return Pipeline{}, ErrNotFound
 	}
 	return p, nil
+}
+
+func (store *inMemPipelineStore) Update(p Pipeline) error {
+	store.lock.Lock()
+	defer store.lock.Unlock()
+	store.data[p.ID] = p
+	return nil
 }
