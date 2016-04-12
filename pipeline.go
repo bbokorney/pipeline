@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 // Pipeline is a set of Steps
 type Pipeline struct {
 	ID     PipelineID `json:"id"`
@@ -12,14 +14,14 @@ type Pipeline struct {
 
 // Step is a step of a Pipeline
 type Step struct {
-	Name      string   `json:"name"`
-	ImageName string   `json:"image"`
-	Cmds      []Cmd    `json:"cmds"`
-	After     []string `json:"after"`
-	JobURL    string   `json:"job_url"`
-	Status    Status   `json:"status"`
-	StartTime int64    `json:"start_time"`
-	EndTime   int64    `json:"end_time"`
+	Name      string    `json:"name"`
+	ImageName string    `json:"image"`
+	Cmds      []Cmd     `json:"cmds"`
+	After     []string  `json:"after"`
+	JobURL    string    `json:"job_url"`
+	Status    Status    `json:"status"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
 }
 
 // PipelineID is and identifier for a Pipeline
@@ -46,3 +48,6 @@ const (
 	// StatusNotRun state indicates the job was not run
 	StatusNotRun Status = "not-run"
 )
+
+// NotRunTime represents the time for steps which have not been started or ended
+var NotRunTime = time.Unix(0, 0)

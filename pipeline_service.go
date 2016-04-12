@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 // PipelineService manages Pipelines
 type PipelineService interface {
 	Add(pipeline Pipeline) (Pipeline, error)
@@ -28,6 +30,8 @@ func (service pipelineService) Add(pipeline Pipeline) (Pipeline, error) {
 	pipeline.Status = StatusQueued
 	for _, step := range pipeline.Steps {
 		step.Status = StatusQueued
+		step.StartTime = time.Unix(0, 0)
+		step.EndTime = time.Unix(0, 0)
 	}
 	p, err := service.pipelineStore.Add(pipeline)
 	if err != nil {

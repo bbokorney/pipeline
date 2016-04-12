@@ -90,7 +90,7 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 	if job.Status != dockworker.JobStatusSuccessful {
 		// set the status of the step
 		stepIndex := w.runningJobs[job.ID]
-		w.pipeline.Steps[stepIndex].EndTime = time.Now().Unix()
+		w.pipeline.Steps[stepIndex].EndTime = time.Now()
 		w.pipeline.Steps[stepIndex].Status = StatusFailed
 		w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/%d", w.dwClient.BaseURL(), job.ID)
 		w.pipeline.Status = StatusFailed
@@ -101,7 +101,7 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 
 	// now we know the job was successful
 	stepIndex := w.runningJobs[job.ID]
-	w.pipeline.Steps[stepIndex].EndTime = time.Now().Unix()
+	w.pipeline.Steps[stepIndex].EndTime = time.Now()
 	w.pipeline.Steps[stepIndex].Status = StatusSuccessful
 	w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/%d", w.dwClient.BaseURL(), job.ID)
 	w.saveUpdatedPipeline()
@@ -152,7 +152,7 @@ func (w *worker) runStep(step *Step, stepIndex int) error {
 		return err
 	}
 	log.Debugf("Job started %+v", createdJob)
-	step.StartTime = time.Now().Unix()
+	step.StartTime = time.Now()
 	w.runningJobs[createdJob.ID] = stepIndex
 	step.Status = StatusRunning
 	w.saveUpdatedPipeline()
