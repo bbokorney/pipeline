@@ -90,27 +90,30 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 	w.pipeline.Steps[stepIndex].EndTime = job.EndTime
 	w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/jobs/%d", w.dwClient.BaseURL(), job.ID)
 
-	if job.Status == dockworker.JobStatusFailed || job.Status == dockworker.JobStatusError ||
-		job.Status == dockworker.JobStatusStopped {
-		log.Debugf("Job %d has status %s", job.ID, job.Status)
-		// set the status of the step
-		switch job.Status {
-		case dockworker.JobStatusFailed:
-			w.pipeline.Steps[stepIndex].Status = StatusFailed
-		case dockworker.JobStatusError:
-			w.pipeline.Steps[stepIndex].Status = StatusError
-		case dockworker.JobStatusStopped:
-			w.pipeline.Steps[stepIndex].Status = StatusStopped
-		}
+	log.Debugf("Job %d has status %s", job.ID, job.Status)
+	// set the status of the step
+	switch job.Status {
+	case dockworker.JobStatusFailed:
+		w.pipeline.Steps[stepIndex].Status = StatusFailed
+	case dockworker.JobStatusError:
+		w.pipeline.Steps[stepIndex].Status = StatusError
+	case dockworker.JobStatusStopped:
+		w.pipeline.Steps[stepIndex].Status = StatusStopped
+	case dockworker.JobStatusSuccessful:
+		w.pipeline.Steps[stepIndex].Status = StatusSuccessful
+	}
 
-		if w.pipeline.Status != StatusStopping {
-			// this is the first detection of failure
-			// We need to start cleaning up
-			w.pipeline.Status = StatusStopping
-			log.Debugf("Pipeline %d has status %s", w.pipeline.ID, StatusStopping)
-			w.stopRunningJobs()
-			w.setQueuedToNotRun()
-		}
+	if w.pipeline.Status != StatusStopping && w.pipeline.Steps[stepIndex].Status != StatusSuccessful {
+		// this is the first detection of failure
+		// We need to start cleaning up
+		w.pipeline.Status = StatusStopping
+		log.Debugf("Pipeline %d has status %s", w.pipeline.ID, StatusStopping)
+		w.stopRunningJobs()
+		w.setQueuedToNotRun()
+	}
+
+	// check if we're stopping the pipeline
+	if w.pipeline.Status == StatusStopping {
 		done = false
 		if len(w.runningJobs) == 0 {
 			// no jobs left running, we can exit
@@ -122,8 +125,8 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 		return done, nil
 	}
 
-	// now we know the job was successful
-	w.pipeline.Steps[stepIndex].Status = StatusSuccessful
+	// now we know the job was successful and
+	// the pipeline is still running
 	w.saveUpdatedPipeline()
 
 	// this job finishing could have satisfied the

@@ -788,4 +788,300 @@ var apiTestCases = []apiTestCase{
 			},
 		},
 	},
+	apiTestCase{
+		requestBody: `{
+		  "name": "Pipeline Name",
+		  "steps": [
+		    {
+		      "name": "step1",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["sleep 3", "ls notafile"]
+		    },
+				{
+		      "name": "step2",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"]
+		    },
+				{
+		      "name": "step3",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step1", "step2"]
+		    },
+				{
+		      "name": "step4",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step2"]
+		    },
+				{
+		      "name": "step5",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step3", "step4"]
+		    }
+		  ]
+		}`,
+		pipeline: Pipeline{
+			Name:   "Pipeline Name",
+			Status: StatusFailed,
+			Steps: []*Step{
+				&Step{
+					Name:      "step1",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"sleep 3", "ls notafile"},
+					Status:    StatusFailed,
+				},
+				&Step{
+					Name:      "step2",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusSuccessful,
+				},
+				&Step{
+					Name:      "step3",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step1", "step2"},
+				},
+				&Step{
+					Name:      "step4",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusSuccessful,
+					After:     []string{"step2"},
+				},
+				&Step{
+					Name:      "step5",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step3", "step4"},
+				},
+			},
+		},
+	},
+	apiTestCase{
+		requestBody: `{
+		  "name": "Pipeline Name",
+		  "steps": [
+		    {
+		      "name": "step1",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls notafile"]
+		    },
+				{
+		      "name": "step2",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["sleep 2", "ls"]
+		    },
+				{
+		      "name": "step3",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step1", "step2"]
+		    },
+				{
+		      "name": "step4",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step2"]
+		    },
+				{
+		      "name": "step5",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step3", "step4"]
+		    }
+		  ]
+		}`,
+		pipeline: Pipeline{
+			Name:   "Pipeline Name",
+			Status: StatusFailed,
+			Steps: []*Step{
+				&Step{
+					Name:      "step1",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls notafile"},
+					Status:    StatusFailed,
+				},
+				&Step{
+					Name:      "step2",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"sleep 2", "ls"},
+					Status:    StatusStopped,
+				},
+				&Step{
+					Name:      "step3",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step1", "step2"},
+				},
+				&Step{
+					Name:      "step4",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step2"},
+				},
+				&Step{
+					Name:      "step5",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step3", "step4"},
+				},
+			},
+		},
+	},
+	apiTestCase{
+		requestBody: `{
+		  "name": "Pipeline Name",
+		  "steps": [
+		    {
+		      "name": "step1",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"]
+		    },
+				{
+		      "name": "step2",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["sleep 1", "ls notafile"]
+		    },
+				{
+		      "name": "step3",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step1", "step2"]
+		    },
+				{
+		      "name": "step4",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step2"]
+		    },
+				{
+		      "name": "step5",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step3", "step4"]
+		    }
+		  ]
+		}`,
+		pipeline: Pipeline{
+			Name:   "Pipeline Name",
+			Status: StatusFailed,
+			Steps: []*Step{
+				&Step{
+					Name:      "step1",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusSuccessful,
+				},
+				&Step{
+					Name:      "step2",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"sleep 1", "ls notafile"},
+					Status:    StatusFailed,
+				},
+				&Step{
+					Name:      "step3",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step1", "step2"},
+				},
+				&Step{
+					Name:      "step4",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step2"},
+				},
+				&Step{
+					Name:      "step5",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step3", "step4"},
+				},
+			},
+		},
+	},
+	apiTestCase{
+		requestBody: `{
+		  "name": "Pipeline Name",
+		  "steps": [
+		    {
+		      "name": "step1",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"]
+		    },
+				{
+		      "name": "step2",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["sleep 1", "ls"]
+		    },
+				{
+		      "name": "step3",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step1", "step2"]
+		    },
+				{
+		      "name": "step4",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["sleep .5", "ls notafile"],
+					"after": ["step2"]
+		    },
+				{
+		      "name": "step5",
+		      "image": "ubuntu:14.04",
+		      "cmds": ["ls"],
+					"after": ["step3", "step4"]
+		    }
+		  ]
+		}`,
+		pipeline: Pipeline{
+			Name:   "Pipeline Name",
+			Status: StatusFailed,
+			Steps: []*Step{
+				&Step{
+					Name:      "step1",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusSuccessful,
+				},
+				&Step{
+					Name:      "step2",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"sleep 1", "ls"},
+					Status:    StatusSuccessful,
+				},
+				&Step{
+					Name:      "step3",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusSuccessful,
+					After:     []string{"step1", "step2"},
+				},
+				&Step{
+					Name:      "step4",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"sleep .5", "ls notafile"},
+					Status:    StatusFailed,
+					After:     []string{"step2"},
+				},
+				&Step{
+					Name:      "step5",
+					ImageName: "ubuntu:14.04",
+					Cmds:      []Cmd{"ls"},
+					Status:    StatusNotRun,
+					After:     []string{"step3", "step4"},
+				},
+			},
+		},
+	},
 }
