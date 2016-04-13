@@ -43,10 +43,14 @@ const (
 	StatusSuccessful Status = "successful"
 	// StatusFailed state indicates the job has completed with a failure
 	StatusFailed Status = "failed"
+	// StatusStopping state indicates the job is stopping
+	StatusStopping Status = "stopping"
 	// StatusError state indicates the job could not be run properly
 	StatusError Status = "error"
 	// StatusNotRun state indicates the job was not run
 	StatusNotRun Status = "not-run"
+	// StatusStopped state indicates the job was stoped
+	StatusStopped Status = "stopped"
 )
 
 // NotRunTime represents the time for steps which have not been started or ended

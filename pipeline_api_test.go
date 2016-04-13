@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,15 @@ const (
 	pipelineHostEnvKey = "PIPELINE_URL"
 )
 
+func contains(i int, slice []string) bool {
+	for _, arg := range slice {
+		if strconv.Itoa(i) == arg {
+			return true
+		}
+	}
+	return false
+}
+
 func TestAPI(t *testing.T) {
 	url := os.Getenv(pipelineHostEnvKey)
 	if url == "" {
@@ -26,7 +36,13 @@ func TestAPI(t *testing.T) {
 	}
 	pipelineURL := fmt.Sprintf("%s/%s", url, "pipelines")
 
+	runlist := os.Args[1:]
+	fmt.Println("Running tests", runlist)
+
 	for i, tc := range apiTestCases {
+		if len(runlist) > 0 && !contains(i, runlist) {
+			continue
+		}
 		resp, err := http.Post(pipelineURL, "application/json", strings.NewReader(tc.requestBody))
 		if err != nil {
 			t.Errorf("Case %d: Error sending post request: %s", i, err)
@@ -60,7 +76,7 @@ func compareStepData(t *testing.T, tcNum int, expectedSteps []*Step, actualSteps
 func compareStepStatuses(t *testing.T, tcNum int, expectedSteps []*Step, actualSteps []*Step) {
 	assert.Equal(t, len(expectedSteps), len(actualSteps), "Case %d: Length of steps should match", tcNum)
 	for i := range expectedSteps {
-		assert.Equal(t, expectedSteps[i].Status, actualSteps[i].Status, "Case %d, Step %d: Step name should be unchanged", tcNum, i)
+		assert.Equal(t, expectedSteps[i].Status, actualSteps[i].Status, "Case %d, Step %d: Step statuses should match", tcNum, i)
 	}
 }
 
@@ -76,9 +92,13 @@ func compareStepJobURLs(t *testing.T, tcNum int, expectedSteps []*Step, actualSt
 func validateStepTimestampsAndDependencies(t *testing.T, tcNum int, actualSteps []*Step) {
 	steps := make(map[string]Step)
 	for i, step := range actualSteps {
-		assert.Condition(t, func() bool { return step.StartTime.Before(step.EndTime) },
-			"Case %d, Step %d: Start time should be before end time", tcNum, i)
-		steps[step.Name] = *step
+		if step.Status != StatusNotRun {
+			assert.Condition(t, func() bool { return step.StartTime.Before(step.EndTime) || step.StartTime.Equal(step.EndTime) },
+				"Case %d, Step %d: Start time (%s) should be before or equal to end time (%s)", tcNum, i, step.StartTime, step.EndTime)
+			assert.NotEqual(t, 0, step.StartTime.Unix(), "Case %d, Step %d: Start time (%s) should not be 0")
+			assert.NotEqual(t, 0, step.EndTime.Unix(), "Case %d, Step %d: End time (%s) should not be 0")
+			steps[step.Name] = *step
+		}
 	}
 
 	for stepIndex, step := range actualSteps {
@@ -87,7 +107,8 @@ func validateStepTimestampsAndDependencies(t *testing.T, tcNum int, actualSteps 
 				assert.Condition(t, func() bool { return steps[dep].Status == StatusSuccessful },
 					"Case %d, Step %d: Dep %d: End time of dependency should be before start time of step", tcNum, stepIndex, depIndex)
 				assert.Condition(t, func() bool { return steps[dep].EndTime.Before(step.StartTime) },
-					"Case %d, Step %d: Dep %d: End time of dependency should be before start time of step", tcNum, stepIndex, depIndex)
+					"Case %d, Step %d: Dep %d: End time of dependency (%s) should be before start time of step (%s)",
+					tcNum, stepIndex, depIndex, steps[dep].EndTime, step.StartTime)
 			}
 		}
 	}
@@ -96,7 +117,7 @@ func validateStepTimestampsAndDependencies(t *testing.T, tcNum int, actualSteps 
 func waitUntilDone(t *testing.T, tcNum int, pipelineURL string, pipelineID PipelineID) {
 	for i := 0; i < retryCount; i++ {
 		p := getPipeline(t, tcNum, pipelineURL, pipelineID)
-		if p.Status != "running" && p.Status != "queued" {
+		if p.Status != StatusRunning && p.Status != StatusQueued && p.Status != StatusStopping {
 			return
 		}
 		time.Sleep(1 * time.Second)
@@ -143,353 +164,4 @@ func getLogs(t *testing.T, tcNum int, url string) string {
 		t.Errorf("Case %d: Error reading log response body %s", tcNum, err)
 	}
 	return string(respBody)
-}
-
-type apiTestCase struct {
-	requestBody string
-	pipeline    Pipeline
-}
-
-var apiTestCases = []apiTestCase{
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "Step Name",
-	      "image": "ubuntu:14.04",
-	      "cmds": [
-	        "ls -la",
-	        "touch hello.txt",
-	        "ls -la"
-	      ]
-			}
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusSuccessful,
-			Steps: []*Step{
-				&Step{
-					Name:      "Step Name",
-					ImageName: "ubuntu:14.04",
-					Cmds: []Cmd{
-						"ls -la",
-						"touch hello.txt",
-						"ls -la",
-					},
-					Status: StatusSuccessful,
-				},
-			},
-		},
-	},
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "Step Name",
-	      "image": "ubuntu:14.04",
-	      "cmds": [
-	        "ls -la",
-	        "touch hello.txt",
-	        "ls -la"
-	      ]
-			},
-			{
-	      "name": "Other Step Name",
-	      "image": "ubuntu:14.04",
-	      "cmds": [
-	        "ls -la",
-	        "touch hello.txt",
-	        "ls -la"
-	      ]
-			}
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusSuccessful,
-			Steps: []*Step{
-				&Step{
-					Name:      "Step Name",
-					ImageName: "ubuntu:14.04",
-					Cmds: []Cmd{
-						"ls -la",
-						"touch hello.txt",
-						"ls -la",
-					},
-					Status: StatusSuccessful,
-				},
-				&Step{
-					Name:      "Other Step Name",
-					ImageName: "ubuntu:14.04",
-					Cmds: []Cmd{
-						"ls -la",
-						"touch hello.txt",
-						"ls -la",
-					},
-					Status: StatusSuccessful,
-				},
-			},
-		},
-	},
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "step1",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"]
-	    },
-			{
-	      "name": "step2",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"],
-				"after": ["step1"]
-	    }
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusSuccessful,
-			Steps: []*Step{
-				&Step{
-					Name:      "step1",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-				},
-				&Step{
-					Name:      "step2",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-					After:     []string{"step1"},
-				},
-			},
-		},
-	},
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "step1",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"]
-	    },
-			{
-	      "name": "step2",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"],
-				"after": ["step1"]
-	    },
-			{
-	      "name": "step3",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"],
-				"after": ["step2"]
-	    }
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusSuccessful,
-			Steps: []*Step{
-				&Step{
-					Name:      "step1",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-				},
-				&Step{
-					Name:      "step2",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-					After:     []string{"step1"},
-				},
-				&Step{
-					Name:      "step3",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-					After:     []string{"step2"},
-				},
-			},
-		},
-	},
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "step1",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"]
-	    },
-			{
-	      "name": "step2",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"],
-				"after": ["step1"]
-	    },
-			{
-	      "name": "step3",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"],
-				"after": ["step1"]
-	    }
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusSuccessful,
-			Steps: []*Step{
-				&Step{
-					Name:      "step1",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-				},
-				&Step{
-					Name:      "step2",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-					After:     []string{"step1"},
-				},
-				&Step{
-					Name:      "step3",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-					After:     []string{"step1"},
-				},
-			},
-		},
-	},
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "step1",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"]
-	    },
-			{
-	      "name": "step2",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"]
-	    },
-			{
-	      "name": "step3",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"],
-				"after": ["step1", "step2"]
-	    }
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusSuccessful,
-			Steps: []*Step{
-				&Step{
-					Name:      "step1",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-				},
-				&Step{
-					Name:      "step2",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-				},
-				&Step{
-					Name:      "step3",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-					After:     []string{"step1", "step2"},
-				},
-			},
-		},
-	},
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "step1",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"]
-	    },
-			{
-	      "name": "step2",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"],
-				"after": ["step1"]
-	    },
-			{
-	      "name": "step3",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls"]
-	    }
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusSuccessful,
-			Steps: []*Step{
-				&Step{
-					Name:      "step1",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-				},
-				&Step{
-					Name:      "step2",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-					After:     []string{"step1"},
-				},
-				&Step{
-					Name:      "step3",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls"},
-					Status:    StatusSuccessful,
-				},
-			},
-		},
-	},
-	// Failure tests
-	apiTestCase{
-		requestBody: `{
-	  "name": "Pipeline Name",
-	  "steps": [
-	    {
-	      "name": "Step Name",
-	      "image": "ubuntu:14.04",
-	      "cmds": ["ls notafile.txt"]
-			}
-	  ]
-	}`,
-		pipeline: Pipeline{
-			Name:   "Pipeline Name",
-			Status: StatusFailed,
-			Steps: []*Step{
-				&Step{
-					Name:      "Step Name",
-					ImageName: "ubuntu:14.04",
-					Cmds:      []Cmd{"ls notafile.txt"},
-					Status:    StatusFailed,
-				},
-			},
-		},
-	},
 }

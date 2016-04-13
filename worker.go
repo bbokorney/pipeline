@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/bbokorney/dockworker"
@@ -85,27 +84,47 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 		return false, nil
 	}
 
-	// TODO: lots of duplicated code in this section
-	// check the status of the job
-	if job.Status != dockworker.JobStatusSuccessful {
+	stepIndex := w.runningJobs[job.ID]
+	delete(w.runningJobs, job.ID)
+	w.pipeline.Steps[stepIndex].StartTime = job.StartTime
+	w.pipeline.Steps[stepIndex].EndTime = job.EndTime
+	w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/jobs/%d", w.dwClient.BaseURL(), job.ID)
+
+	if job.Status == dockworker.JobStatusFailed || job.Status == dockworker.JobStatusError ||
+		job.Status == dockworker.JobStatusStopped {
+		log.Debugf("Job %d has status %s", job.ID, job.Status)
 		// set the status of the step
-		stepIndex := w.runningJobs[job.ID]
-		w.pipeline.Steps[stepIndex].EndTime = time.Now()
-		w.pipeline.Steps[stepIndex].Status = StatusFailed
-		w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/%d", w.dwClient.BaseURL(), job.ID)
-		w.pipeline.Status = StatusFailed
+		switch job.Status {
+		case dockworker.JobStatusFailed:
+			w.pipeline.Steps[stepIndex].Status = StatusFailed
+		case dockworker.JobStatusError:
+			w.pipeline.Steps[stepIndex].Status = StatusError
+		case dockworker.JobStatusStopped:
+			w.pipeline.Steps[stepIndex].Status = StatusStopped
+		}
+
+		if w.pipeline.Status != StatusStopping {
+			// this is the first detection of failure
+			// We need to start cleaning up
+			w.pipeline.Status = StatusStopping
+			log.Debugf("Pipeline %d has status %s", w.pipeline.ID, StatusStopping)
+			w.stopRunningJobs()
+			w.setQueuedToNotRun()
+		}
+		done = false
+		if len(w.runningJobs) == 0 {
+			// no jobs left running, we can exit
+			w.pipeline.Status = StatusFailed
+			log.Debugf("Pipeline %d has status %s and 0 running jobs", w.pipeline.ID, StatusFailed)
+			done = true
+		}
 		w.saveUpdatedPipeline()
-		// TODO: stop any running jobs (when the functionality is available)
-		return true, nil
+		return done, nil
 	}
 
 	// now we know the job was successful
-	stepIndex := w.runningJobs[job.ID]
-	w.pipeline.Steps[stepIndex].EndTime = time.Now()
 	w.pipeline.Steps[stepIndex].Status = StatusSuccessful
-	w.pipeline.Steps[stepIndex].JobURL = fmt.Sprintf("%s/%d", w.dwClient.BaseURL(), job.ID)
 	w.saveUpdatedPipeline()
-	delete(w.runningJobs, job.ID)
 
 	// this job finishing could have satisfied the
 	// dependencies of another waiting step
@@ -123,10 +142,28 @@ func (w *worker) handleUpdate(job dockworker.Job) (done bool, err error) {
 	return false, nil
 }
 
+func (w *worker) stopRunningJobs() {
+	for jobID, stepIndex := range w.runningJobs {
+		log.Debugf("Stopping job %d for step %d", jobID, stepIndex)
+		if err := w.dwClient.StopJob(dockworker.JobID(jobID)); err != nil {
+			log.Errorf("Error stopping job %d: %s", jobID, err)
+		}
+		w.pipeline.Steps[stepIndex].Status = StatusStopped
+	}
+}
+
+func (w *worker) setQueuedToNotRun() {
+	for _, step := range w.pipeline.Steps {
+		if step.Status == StatusQueued {
+			step.Status = StatusNotRun
+		}
+	}
+}
+
 func (w *worker) runReadySteps() error {
 	log.Debug("Running ready steps")
 	for i, step := range w.pipeline.Steps {
-		if stepDone(*step) {
+		if stepDoneOrRunning(*step) {
 			continue
 		}
 		if w.dependenciesDone(*step) {
@@ -152,7 +189,6 @@ func (w *worker) runStep(step *Step, stepIndex int) error {
 		return err
 	}
 	log.Debugf("Job started %+v", createdJob)
-	step.StartTime = time.Now()
 	w.runningJobs[createdJob.ID] = stepIndex
 	step.Status = StatusRunning
 	w.saveUpdatedPipeline()
@@ -171,17 +207,12 @@ func (w *worker) saveUpdatedPipeline() {
 }
 
 func (w *worker) dependenciesDone(step Step) bool {
-	if len(step.After) == 0 {
-		// this step has no dependencies
-		log.Debugf("Step %+v has no dependencies", step)
-		return true
-	}
 	for _, dep := range step.After {
-		if w.steps[dep].Status == StatusSuccessful {
-			return true
+		if w.steps[dep].Status != StatusSuccessful {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (w *worker) allStepsDone() bool {
@@ -197,6 +228,14 @@ func stepDone(step Step) bool {
 	return step.Status == StatusSuccessful ||
 		step.Status == StatusFailed ||
 		step.Status == StatusError
+}
+
+func stepRunning(step Step) bool {
+	return step.Status == StatusRunning
+}
+
+func stepDoneOrRunning(step Step) bool {
+	return stepDone(step) || stepRunning(step)
 }
 
 func (w *worker) cleanup() {
