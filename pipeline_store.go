@@ -14,7 +14,7 @@ type PipelineStore interface {
 
 var (
 	// ErrNotFound indicates an item not found
-	ErrNotFound = errors.New("Item not found")
+	ErrNotFound = errors.New("Pipeline with that ID not found")
 )
 
 // NewPipelineStore returns a new PipelineStore

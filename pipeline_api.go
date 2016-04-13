@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 )
 
@@ -51,10 +52,10 @@ func (api PipelineAPI) findPipeline(request *restful.Request, response *restful.
 	if err != nil {
 		switch err {
 		case ErrNotFound:
-			response.WriteHeaderAndEntity(http.StatusNotFound, errorResponse("No pipeline with that ID"))
+			logAndRespondError(response, http.StatusNotFound, err)
 			return
 		default:
-			response.WriteHeaderAndEntity(http.StatusInternalServerError, errorResponse(err.Error()))
+			logAndRespondError(response, http.StatusInternalServerError, err)
 			return
 		}
 	}
@@ -65,18 +66,23 @@ func (api PipelineAPI) createPipeline(request *restful.Request, response *restfu
 	pipeline := &Pipeline{}
 	err := request.ReadEntity(pipeline)
 	if err != nil {
-		response.WriteHeaderAndEntity(http.StatusInternalServerError, errorResponse(err.Error()))
+		logAndRespondError(response, http.StatusInternalServerError, err)
 		return
 	}
 
 	p, err := api.pipelineService.Add(*pipeline)
 	if err != nil {
 		if isValidationError(err) {
-			response.WriteHeaderAndEntity(http.StatusBadRequest, errorResponse(err.Error()))
+			logAndRespondError(response, http.StatusBadRequest, err)
 			return
 		}
-		response.WriteHeaderAndEntity(http.StatusInternalServerError, errorResponse(err.Error()))
+		logAndRespondError(response, http.StatusInternalServerError, err)
 		return
 	}
 	response.WriteHeaderAndEntity(http.StatusCreated, p)
+}
+
+func logAndRespondError(response *restful.Response, status int, err error) {
+	log.Infof("Error response %d %s", status, err)
+	response.WriteHeaderAndEntity(status, errorResponse(err.Error()))
 }

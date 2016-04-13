@@ -43,7 +43,7 @@ func ValidatePipeline(pipeline Pipeline) error {
 func runValidations(pipeline Pipeline) error {
 	for _, v := range validations {
 		if err := v(pipeline); err != nil {
-			return err
+			return ValidationError{err}
 		}
 	}
 	return nil
@@ -103,6 +103,15 @@ var validations = []validation{
 			}
 			steps[step.Name] = true
 		}
+		// now validate that all the After references
+		// are to other steps
+		for _, step := range pipeline.Steps {
+			for _, dep := range step.After {
+				if _, contains := steps[dep]; !contains {
+					return ErrNonExistentStepDependency
+				}
+			}
+		}
 		return nil
 	},
 	func(pipeline Pipeline) error {
@@ -110,59 +119,57 @@ var validations = []validation{
 		for _, step := range pipeline.Steps {
 			steps[step.Name] = *step
 		}
-		// do a BFS through the graph
+		// do a DFS through the graph
 		overallVisited := make(map[string]bool)
 		// continue until we've visted all steps
 		for len(overallVisited) < len(steps) {
-			visited := make(map[string]bool)
-			q := queue{}
-			// start the search with a node we haven't visited yet
+			// find a starting node which we haven't been to yet
+			var start string
 			for step := range steps {
 				if _, contains := overallVisited[step]; !contains {
-					q.push(step)
+					start = step
 					break
 				}
 			}
-			for q.len() > 0 {
-				curr := q.pop()
-				// check if we've visited this step during this traversal
-				if _, contains := visited[curr]; contains {
-					return ErrCircularStepDependency
-				}
-				// check that this step is legit
-				if _, contains := steps[curr]; !contains {
-					return ErrNonExistentStepDependency
-				}
-				// mark this step as visited
-				overallVisited[curr] = true
-				visited[curr] = true
-				for _, dep := range steps[curr].After {
-					q.push(dep)
-				}
+			visited := make(map[string]bool)
+			stack := make(map[string]bool)
+			state := &cycleFindState{
+				pipeline:       pipeline,
+				steps:          steps,
+				overallVisited: overallVisited,
+				visited:        visited,
+				stack:          stack,
+				cycleFound:     false,
+			}
+			cycleFind(state, start)
+			if state.cycleFound {
+				return ErrCircularStepDependency
 			}
 		}
-
 		return nil
 	},
 }
 
-type queue struct {
-	slice []string
-}
-
-func (q *queue) len() int {
-	return len(q.slice)
-}
-
-func (q *queue) push(item string) {
-	q.slice = append(q.slice, item)
-}
-
-func (q *queue) pop() string {
-	if len(q.slice) < 1 {
-		return ""
+func cycleFind(state *cycleFindState, curr string) {
+	state.overallVisited[curr] = true
+	state.visited[curr] = true
+	state.stack[curr] = true
+	for _, dep := range state.steps[curr].After {
+		if _, contains := state.visited[dep]; !contains {
+			cycleFind(state, dep)
+		} else if _, contains := state.stack[dep]; contains {
+			state.cycleFound = true
+			return
+		}
 	}
-	head := q.slice[0]
-	q.slice = q.slice[1:len(q.slice)]
-	return head
+	delete(state.stack, curr)
+}
+
+type cycleFindState struct {
+	pipeline       Pipeline
+	steps          map[string]Step
+	overallVisited map[string]bool
+	visited        map[string]bool
+	stack          map[string]bool
+	cycleFound     bool
 }
