@@ -1,1 +1,5 @@
-pipeline
+*.go
+*.sh
+*.yml
+*.md
+Godeps

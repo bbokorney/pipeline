@@ -1,4 +1,6 @@
 #!/bin/bash
 
-GOPATH=$(pwd)/Godeps/_workspace godep restore
+rm -f pipeline
+godep get
+GOOS=linux godep go build -o pipeline
 docker build -t pipeline .
