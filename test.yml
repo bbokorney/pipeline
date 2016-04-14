@@ -8,13 +8,13 @@ services:
       - DOCKER_CERT_PATH=/certs
       - DOCKER_MACHINE_NAME
     ports:
-      - "4321:4321"
+      - "4321"
     expose:
       - "4321"
 
   pipeline:
     image: pipeline-test
     ports:
-      - "4322:4322"
+      - "4322"
     expose:
       - "4322"

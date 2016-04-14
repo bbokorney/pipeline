@@ -29,7 +29,7 @@ func contains(i int, slice []string) bool {
 	return false
 }
 
-func TestAPI(t *testing.T) {
+func TestLargeAPI(t *testing.T) {
 	url := os.Getenv(pipelineHostEnvKey)
 	if url == "" {
 		t.Fatalf("Must specify %s", pipelineHostEnvKey)

@@ -184,6 +184,7 @@ func (w *worker) runStep(step *Step, stepIndex int) error {
 	job := dockworker.Job{
 		ImageName:  step.ImageName,
 		Cmds:       convertCmds(step.Cmds),
+		Env:        step.Env,
 		WebhookURL: w.webhookListener.WebhookURL(),
 	}
 	createdJob, err := w.dwClient.CreateJob(job)

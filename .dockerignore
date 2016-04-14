@@ -1,5 +1,6 @@
-*.go
-*.sh
-*.yml
-*.md
-Godeps
+# TODO: revist these
+#*.go
+#*.sh
+#*.yml
+#*.md
+#Godeps

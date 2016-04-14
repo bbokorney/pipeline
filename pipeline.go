@@ -14,14 +14,15 @@ type Pipeline struct {
 
 // Step is a step of a Pipeline
 type Step struct {
-	Name      string    `json:"name"`
-	ImageName string    `json:"image"`
-	Cmds      []Cmd     `json:"cmds"`
-	After     []string  `json:"after"`
-	JobURL    string    `json:"job_url"`
-	Status    Status    `json:"status"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
+	Name      string            `json:"name"`
+	ImageName string            `json:"image"`
+	Cmds      []Cmd             `json:"cmds"`
+	Env       map[string]string `json:"env"`
+	After     []string          `json:"after"`
+	JobURL    string            `json:"job_url"`
+	Status    Status            `json:"status"`
+	StartTime time.Time         `json:"start_time"`
+	EndTime   time.Time         `json:"end_time"`
 }
 
 // PipelineID is and identifier for a Pipeline

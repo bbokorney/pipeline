@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidation(t *testing.T) {
+func TestSmallValidation(t *testing.T) {
 	for i, tc := range validationTestCases {
 		err := ValidatePipeline(tc.pipeline)
 		assert.Equal(t, tc.err, err, "Case %d: Error should match (error %s)", i, err)

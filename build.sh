@@ -3,6 +3,7 @@
 set -x
 set -e
 rm -f pipeline
-godep get -v
+chmod +x ./test.sh
+godep get -v -t
 GOOS=linux godep go build -o pipeline
-docker build -t pipeline .
+docker build -t pipeline-test .
